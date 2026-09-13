@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Դասաժամերի Բաշխում - Ուսուցիչներ</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); width: 100%; max-width: 600px; }
+        h2 { margin-top: 0; color: #2b4476; text-align: center; border-bottom: 2px solid #eaeff5; padding-bottom: 15px; }
+        label { display: block; margin: 15px 0 5px; font-weight: bold; color: #444; font-size: 14px; }
+        select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; background-color: #fff; box-sizing: border-box; transition: border 0.3s; }
+        select:focus { border-color: #2b4476; outline: none; }
+        .slots-container { margin-top: 25px; border: 1px solid #eaeff5; border-radius: 8px; padding: 15px; background: #fafbfc; display: none; }
+        .slot-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eaeff5; }
+        .slot-row:last-child { border-bottom: none; }
+        .slot-info { font-size: 14px; font-weight: 600; color: #2b4476; width: 50%; }
+        .slot-select { width: 45%; }
+        .btn-submit { display: block; width: 100%; padding: 14px; background: #2b4476; color: #fff; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; margin-top: 30px; cursor: pointer; transition: background 0.3s; }
+        .btn-submit:hover { background: #1a2a4f; }
+        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+        .message { text-align: center; margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 6px; display: none; }
+        .msg-success { background: #dcfce7; color: #166534; }
+        .msg-error { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Առարկաների Բաշխում</h2>
+    
+    <label for="teacherSelect">Ընտրեք Ձեր անունը</label>
+    <select id="teacherSelect">
+        <option value="">-- Ընտրեք --</option>
+    </select>
+
+    <div id="classSection" style="display: none;">
+        <label for="classSelect">Ընտրեք Դասարանը</label>
+        <select id="classSelect">
+            <option value="">-- Ընտրեք --</option>
+        </select>
+    </div>
+
+    <div id="slotsContainer" class="slots-container">
+        <!-- Դինամիկ դաշտերը կհայտնվեն այստեղ -->
+    </div>
+
+    <button id="submitBtn" class="btn-submit" style="display: none;">Ուղարկել Բաշխումը</button>
+    <div id="statusMessage" class="message"></div>
+</div>
+
+<script>
+    // Քո Google Apps Script URL-ը
+    const API_URL = "https://script.google.com/macros/s/AKfycbyHnrYppK1qVuFeo3wzngCyIXkJAdBLgQU5mrO63AwpupOljG4frW6_W5JxJXUzWFqVRw/exec";
+
+    // Օրերի անվանումները
+    const dayNames = ["Երկուշաբթի", "Երեքշաբթի", "Չորեքշաբթի", "Հինգշաբթի", "Ուրբաթ"];
+
+    // Ինտելեկտուալ բազան (գեներացված քո ինտերակտիվ դասացուցակից)
+    const db = {
+      "Գրիգորյան Կարինե": {
+        "10 Հ1": { "subjects": ["Առողջ ապր.", "Բնագ."], "slots": [ {"day": 0, "period": 1}, {"day": 2, "period": 0}, {"day": 4, "period": 0} ] },
+        "10 Հ2": { "subjects": ["Առողջ ապր.", "Բնագ."], "slots": [ {"day": 0, "period": 0}, {"day": 1, "period": 2}, {"day": 2, "period": 1} ] }
+      },
+      "Մաշուրյան Սերգեյ": {
+        "10 Հ1": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Համաշխ. պատմ."], "slots": [ {"day": 0, "period": 0}, {"day": 0, "period": 5}, {"day": 1, "period": 1}, {"day": 1, "period": 3}, {"day": 2, "period": 2}, {"day": 2, "period": 4}, {"day": 3, "period": 2}, {"day": 3, "period": 5}, {"day": 4, "period": 2}, {"day": 4, "period": 5} ] },
+        "10 Հ2": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Համաշխ. պատմ."], "slots": [ {"day": 0, "period": 2}, {"day": 0, "period": 3}, {"day": 1, "period": 0}, {"day": 1, "period": 5}, {"day": 2, "period": 0}, {"day": 2, "period": 3}, {"day": 3, "period": 1}, {"day": 3, "period": 3}, {"day": 4, "period": 1}, {"day": 4, "period": 3} ] },
+        "11 Հ1": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Համաշխ. պատմ."], "slots": [ {"day": 0, "period": 1}, {"day": 0, "period": 4}, {"day": 1, "period": 2}, {"day": 1, "period": 4}, {"day": 2, "period": 1}, {"day": 2, "period": 5}, {"day": 3, "period": 0}, {"day": 3, "period": 4}, {"day": 4, "period": 0}, {"day": 4, "period": 4} ] }
+      },
+      "Ասլանյան Լուսինե": {
+        "10 Հ1": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 4}, {"day": 1, "period": 4}, {"day": 2, "period": 1}, {"day": 2, "period": 5}, {"day": 4, "period": 4} ] },
+        "10 ԲՏ": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 3}, {"day": 1, "period": 0}, {"day": 2, "period": 6}, {"day": 3, "period": 0}, {"day": 4, "period": 5} ] },
+        "12 ԲՏ": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 1, "period": 1}, {"day": 2, "period": 4}, {"day": 3, "period": 3}, {"day": 4, "period": 1}, {"day": 4, "period": 2} ] },
+        "11 Տ1": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 2}, {"day": 1, "period": 2}, {"day": 2, "period": 2}, {"day": 3, "period": 4}, {"day": 3, "period": 5}, {"day": 4, "period": 6} ] }
+      },
+      "Մկրտչյան Լիանա": {
+        "10 Հ1": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 0, "period": 2}, {"day": 3, "period": 3}, {"day": 4, "period": 1} ] },
+        "10 Հ2": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 2, "period": 2}, {"day": 3, "period": 0}, {"day": 4, "period": 5} ] },
+        "11 Հ2": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 1, "period": 1}, {"day": 2, "period": 1}, {"day": 4, "period": 3} ] },
+        "12 Հ1": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 1, "period": 0}, {"day": 2, "period": 3}, {"day": 4, "period": 0} ] },
+        "12 Տ3": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 0, "period": 0}, {"day": 1, "period": 3}, {"day": 2, "period": 0}, {"day": 2, "period": 4}, {"day": 3, "period": 1} ] }
+      },
+      "Մկրտչյան Արշալույս": {
+        "10 ԲՏ": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 5}, {"day": 1, "period": 1}, {"day": 1, "period": 2}, {"day": 2, "period": 3}, {"day": 3, "period": 5}, {"day": 4, "period": 4} ] },
+        "12 ԲՏ": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 3}, {"day": 1, "period": 4}, {"day": 1, "period": 5}, {"day": 2, "period": 5}, {"day": 4, "period": 3}, {"day": 4, "period": 6} ] },
+        "11 Տ1": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 0}, {"day": 0, "period": 1}, {"day": 1, "period": 0}, {"day": 2, "period": 4}, {"day": 3, "period": 0}, {"day": 4, "period": 0} ] },
+        "12 Հ1": { "subjects": ["Համաշխ. պատմ.", "Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 2}, {"day": 0, "period": 4}, {"day": 1, "period": 3}, {"day": 2, "period": 0}, {"day": 2, "period": 1}, {"day": 2, "period": 2}, {"day": 3, "period": 1}, {"day": 3, "period": 2}, {"day": 3, "period": 3}, {"day": 4, "period": 1}, {"day": 4, "period": 5} ] }
+      },
+      "Ճաղարյան Նոննա": {
+        "11 Հ1": { "subjects": ["Բնագ.", "Մասն. կողմ."], "slots": [ {"day": 0, "period": 2}, {"day": 2, "period": 6}, {"day": 3, "period": 2} ] },
+        "11 Հ2": { "subjects": ["Բնագ.", "Մասն. կողմ."], "slots": [ {"day": 0, "period": 3}, {"day": 2, "period": 5}, {"day": 4, "period": 0} ] }
+      },
+      "Հովակիմյան Սոնյա": {
+        "11 Հ2": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 4}, {"day": 1, "period": 5}, {"day": 2, "period": 4}, {"day": 3, "period": 3}, {"day": 3, "period": 4} ] },
+        "11 ԲՏ": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 5}, {"day": 1, "period": 0}, {"day": 2, "period": 3}, {"day": 3, "period": 0}, {"day": 4, "period": 5} ] },
+        "11 ԱԲ": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 0}, {"day": 1, "period": 3}, {"day": 2, "period": 5}, {"day": 3, "period": 1}, {"day": 4, "period": 2} ] }
+      },
+      "Ղուկասյան Կարինե": {
+        "10 Հ2": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 1}, {"day": 0, "period": 5}, {"day": 1, "period": 3}, {"day": 3, "period": 2}, {"day": 4, "period": 6} ] },
+        "12 Տ2": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 2}, {"day": 0, "period": 4}, {"day": 1, "period": 6}, {"day": 2, "period": 3}, {"day": 3, "period": 3}, {"day": 4, "period": 5} ] },
+        "12 Հ1": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 3}, {"day": 1, "period": 1}, {"day": 2, "period": 4}, {"day": 2, "period": 5}, {"day": 3, "period": 4}, {"day": 4, "period": 4} ] }
+      },
+      "Օհանյան Հայկ": {
+        "10 ԱԲ": { "subjects": ["Ֆիզ.", "ԹԳՀԳ", "Python", "ԱԲ"], "slots": [ {"day": 0, "period": 0}, {"day": 1, "period": 0}, {"day": 1, "period": 5}, {"day": 2, "period": 4}, {"day": 2, "period": 5}, {"day": 3, "period": 0}, {"day": 3, "period": 4}, {"day": 3, "period": 5}, {"day": 4, "period": 4}, {"day": 4, "period": 5} ] },
+        "11 ԱԲ": { "subjects": ["Ֆիզ.", "Python", "ԱԲ"], "slots": [ {"day": 0, "period": 3}, {"day": 0, "period": 4}, {"day": 0, "period": 5}, {"day": 1, "period": 2}, {"day": 2, "period": 2}, {"day": 2, "period": 3}, {"day": 3, "period": 3} ] }
+      },
+      "Միրաքյան Ժաննա": {
+        "10 Տ": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 0, "period": 2}, {"day": 1, "period": 0}, {"day": 2, "period": 1}, {"day": 3, "period": 1}, {"day": 3, "period": 5}, {"day": 4, "period": 3} ] },
+        "12 Տ2": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 0, "period": 0}, {"day": 0, "period": 3}, {"day": 1, "period": 1}, {"day": 1, "period": 2}, {"day": 2, "period": 0}, {"day": 3, "period": 0}, {"day": 4, "period": 0} ] },
+        "11 Տ1": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 0, "period": 5}, {"day": 2, "period": 3}, {"day": 2, "period": 5}, {"day": 3, "period": 2}, {"day": 4, "period": 1}, {"day": 4, "period": 5} ] }
+      },
+      "Բաղրամյան Նունե": {
+        "10 Տ": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 3}, {"day": 1, "period": 6}, {"day": 2, "period": 0}, {"day": 2, "period": 5}, {"day": 3, "period": 4}, {"day": 4, "period": 1} ] },
+        "10 ԱԲ": { "subjects": ["Հասարակ.", "Հայ. պատմ."], "slots": [ {"day": 0, "period": 4}, {"day": 1, "period": 1}, {"day": 4, "period": 6} ] },
+        "12 Տ2": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 5}, {"day": 1, "period": 3}, {"day": 2, "period": 1}, {"day": 3, "period": 1}, {"day": 4, "period": 2}, {"day": 4, "period": 3} ] },
+        "12 Հ2": { "subjects": ["Համաշխ. պատմ.", "Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 0}, {"day": 0, "period": 1}, {"day": 0, "period": 6}, {"day": 1, "period": 0}, {"day": 1, "period": 2}, {"day": 1, "period": 5}, {"day": 2, "period": 2}, {"day": 2, "period": 4}, {"day": 3, "period": 2}, {"day": 4, "period": 4}, {"day": 4, "period": 5} ] }
+      },
+      "Մկրտչյան Վարդուհի": {
+        "10 Տ": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 0}, {"day": 0, "period": 1}, {"day": 1, "period": 4}, {"day": 2, "period": 3}, {"day": 3, "period": 0} ] },
+        "10 ԱԲ": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 2}, {"day": 1, "period": 2}, {"day": 2, "period": 0}, {"day": 4, "period": 0} ] },
+        "11 Հ1": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 1, "period": 0}, {"day": 2, "period": 2}, {"day": 2, "period": 4}, {"day": 3, "period": 1}, {"day": 4, "period": 3} ] },
+        "12 Հ2": { "subjects": ["Հայոց լ.", "Հայ գրակ."], "slots": [ {"day": 0, "period": 4}, {"day": 1, "period": 3}, {"day": 2, "period": 1}, {"day": 3, "period": 4}, {"day": 4, "period": 1}, {"day": 4, "period": 2} ] }
+      },
+      "Կոստանդյան Սամվել": {
+        "10 ԱԲ": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 0, "period": 3}, {"day": 0, "period": 5}, {"day": 1, "period": 4}, {"day": 2, "period": 1}, {"day": 2, "period": 2}, {"day": 3, "period": 2}, {"day": 3, "period": 3}, {"day": 4, "period": 2}, {"day": 4, "period": 3} ] },
+        "11 Հ1": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 1, "period": 1}, {"day": 1, "period": 3}, {"day": 3, "period": 5} ] },
+        "11 ԱԲ": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 0, "period": 1}, {"day": 0, "period": 6}, {"day": 1, "period": 5}, {"day": 2, "period": 0}, {"day": 2, "period": 4}, {"day": 3, "period": 4}, {"day": 4, "period": 0}, {"day": 4, "period": 1} ] }
+      },
+      "Դոլունց Վլադիմիր": {
+        "11 Հ2": { "subjects": ["Արվ.", "Հասարակ.", "Հայ. պատմ.", "Համաշխ. պատմ."], "slots": [ {"day": 0, "period": 0}, {"day": 0, "period": 5}, {"day": 1, "period": 0}, {"day": 1, "period": 2}, {"day": 1, "period": 3}, {"day": 2, "period": 0}, {"day": 2, "period": 2}, {"day": 3, "period": 1}, {"day": 3, "period": 2}, {"day": 4, "period": 5}, {"day": 4, "period": 6} ] },
+        "11 ԲՏ": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 4}, {"day": 0, "period": 6}, {"day": 1, "period": 5}, {"day": 2, "period": 4}, {"day": 4, "period": 0}, {"day": 4, "period": 1} ] },
+        "11 ԱԲ": { "subjects": ["Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 2}, {"day": 1, "period": 4}, {"day": 2, "period": 1}, {"day": 3, "period": 5}, {"day": 3, "period": 6}, {"day": 4, "period": 4} ] },
+        "12 Տ3": { "subjects": ["Համաշխ. պատմ.", "Հասարակ.", "Հայ. պատմ.", "Արվ."], "slots": [ {"day": 0, "period": 1}, {"day": 1, "period": 1}, {"day": 2, "period": 3}, {"day": 2, "period": 5}, {"day": 3, "period": 0}, {"day": 3, "period": 3}, {"day": 4, "period": 2} ] }
+      },
+      "Գրիգորյան Հասմիկ": {
+        "12 Հ2": { "subjects": ["Երկր.", "Հանր."], "slots": [ {"day": 1, "period": 4}, {"day": 2, "period": 3}, {"day": 3, "period": 3} ] }
+      }
+    };
+
+    const tSelect = document.getElementById("teacherSelect");
+    const cSection = document.getElementById("classSection");
+    const cSelect = document.getElementById("classSelect");
+    const slotsCont = document.getElementById("slotsContainer");
+    const submitBtn = document.getElementById("submitBtn");
+    const msgBox = document.getElementById("statusMessage");
+
+    // Լրացնել ուսուցիչների ցանկը
+    Object.keys(db).forEach(t => {
+        let opt = document.createElement("option");
+        opt.value = t; opt.textContent = t;
+        tSelect.appendChild(opt);
+    });
+
+    tSelect.addEventListener("change", function() {
+        cSelect.innerHTML = '<option value="">-- Ընտրեք --</option>';
+        slotsCont.style.display = "none";
+        submitBtn.style.display = "none";
+        msgBox.style.display = "none";
+        
+        const teacher = this.value;
+        if(teacher) {
+            cSection.style.display = "block";
+            Object.keys(db[teacher]).forEach(cls => {
+                let opt = document.createElement("option");
+                opt.value = cls; opt.textContent = cls;
+                cSelect.appendChild(opt);
+            });
+        } else {
+            cSection.style.display = "none";
+        }
+    });
+
+    cSelect.addEventListener("change", function() {
+        slotsCont.innerHTML = "";
+        msgBox.style.display = "none";
+        const teacher = tSelect.value;
+        const cls = this.value;
+        
+        if(teacher && cls) {
+            const data = db[teacher][cls];
+            slotsCont.style.display = "block";
+            
+            let html = "";
+            data.slots.forEach((slot, index) => {
+                let dName = dayNames[slot.day];
+                let pName = (slot.period + 1) + "-րդ ժամ";
+                
+                let selectHtml = `<select class="slot-select" data-day="${dName}" data-period="${slot.period + 1}">
+                    <option value="">- Ընտրեք առարկան -</option>`;
+                
+                data.subjects.forEach(subj => {
+                    selectHtml += `<option value="${subj}">${subj}</option>`;
+                });
+                selectHtml += `</select>`;
+                
+                html += `<div class="slot-row">
+                            <div class="slot-info">${dName}, ${pName}</div>
+                            ${selectHtml}
+                         </div>`;
+            });
+            slotsCont.innerHTML = html;
+            submitBtn.style.display = "block";
+        } else {
+            slotsCont.style.display = "none";
+            submitBtn.style.display = "none";
+        }
+    });
+
+    submitBtn.addEventListener("click", function() {
+        const teacher = tSelect.value;
+        const cls = cSelect.value;
+        const selects = document.querySelectorAll(".slot-select");
+        
+        let selections = [];
+        let allFilled = true;
+
+        selects.forEach(sel => {
+            if(!sel.value) allFilled = false;
+            selections.push({
+                day: sel.getAttribute("data-day"),
+                period: sel.getAttribute("data-period"),
+                subject: sel.value
+            });
+        });
+
+        if(!allFilled) {
+            showMessage("Խնդրում ենք ընտրել առարկա բոլոր ժամերի համար։", "msg-error");
+            return;
+        }
+
+        const payload = {
+            teacher: teacher,
+            className: cls,
+            selections: selections
+        };
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Ուղարկվում է...";
+        msgBox.style.display = "none";
+
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            showMessage("Ձեր բաշխումը հաջողությամբ պահպանվեց:", "msg-success");
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Ուղարկել Բաշխումը";
+            // Մաքրել դաշտերը
+            selects.forEach(sel => sel.value = "");
+        })
+        .catch(error => {
+            showMessage("Տեղի ունեցավ սխալ: Փորձեք նորից:", "msg-error");
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Ուղարկել Բաշխումը";
+        });
+    });
+
+    function showMessage(text, className) {
+        msgBox.textContent = text;
+        msgBox.className = "message " + className;
+        msgBox.style.display = "block";
+    }
+</script>
+
+</body>
+</html>
