@@ -330,11 +330,20 @@
 
     editBtn.addEventListener("click", function() {
         isReadOnly = false;
-        document.querySelectorAll('.slot-select').forEach(el => el.disabled = false);
+        
+        // Ակտիվացնում և ԱՄԲՈՂՋՈՒԹՅԱՄԲ ՄԱՔՐՈՒՄ ենք նախորդ ընտրությունները
+        document.querySelectorAll('.slot-select').forEach(el => {
+            el.disabled = false;
+            el.value = ""; // Զրոյացնում է դաշտը
+        });
+        
         editBtn.style.display = "none";
         submitBtn.style.display = "block";
+        submitBtn.disabled = true; // Անջատում ենք կոճակը, մինչև նորից ճիշտ չլրացնի
+        submitBtn.textContent = "Լրացրեք բոլոր ժամերը ճիշտ քանակով";
         statusPanel.style.display = "none";
-        validatePlan();
+        
+        validatePlan(); // Ստուգում ենք և վերադարձնում կարմիր/սպիտակ գույները
     });
 
     submitBtn.addEventListener("click", function() {
